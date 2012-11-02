@@ -1,0 +1,84 @@
+#!/usr/bin/env perl
+
+BEGIN {
+	local $ENV{PERL_DL_NONLAZY} = 1;
+	require Tkx;
+	Tkx::package_require("Img");
+	local $ENV{PERL_DL_NONLAZY} = 0;
+}
+
+use FindBin qw($Bin);
+use lib "$Bin/../lib";
+
+use MuPDF::Easy;
+use MuPDF::Easy::Transform;
+use MuPDF::Easy::Pixmap;
+use MuPDF::SWIG;
+
+use MIME::Base64;
+
+
+#use Moo;
+#has mupdf => ( is => 'required' );
+#has doc => ( is => 'lazy' );
+#has filename => ( is => 'lazy' );
+
+my $file = "/zaki_tmp/Downloads/10.1.1.5.8893.pdf";
+my $out = "/tmp/out.png";
+
+my $m = MuPDF::Easy->new();
+my $doc = $m->get_document($file);
+print "Pages: @{[$doc->page_count]}\n";
+my $page = $doc->get_page($m->fz_context, 0);
+
+my $rect = $page->bounds;
+my $transform = MuPDF::Easy::Transform->identity;
+$rect = MuPDF::SWIG::fz_transform_rect($transform, $rect);
+my $bbox = MuPDF::SWIG::fz_round_rect($rect);
+
+my $pixmap = MuPDF::Easy::Pixmap->new(fz_context => $m->fz_context,
+	bbox => $bbox,
+	type => 'rgb' );
+$page->run_page($pixmap, $transform);
+my $imager = $pixmap->get_imager();
+
+my %mainWindow;
+
+sub addMainWindow
+{
+    carp() if $s{debug};
+    $mainWindow{mw} = Tkx::widget->new('.');
+    #$mainWindow{mw}->g_wm_minsize( 200, 400 );  # force a size if needed.  Helps with some pack layouts
+    #$mainWindow{mw}->g_wm_iconbitmap('c:\localdata\cockpit\rocket.ico');
+}
+
+sub get_photo {
+	my $imager = shift;
+	my $image_data;
+	$imager->write(data =>\$image_data, type=>'png')
+		or die "Cannot save image: ", $imager->errstr;
+	# supplying binary data didn't work, so we base64 encode it
+	$image_data = encode_base64($image_data);
+	my $tk_image = Tkx::image_create_photo(-data => $image_data);
+	#my $tk_image = Tkx::image_create_photo(-file => "/tmp/out.png");
+}
+
+sub main {
+	addMainWindow();
+	my $photo = get_photo($imager);
+
+	# TODO : set as just the first page (or in the future, detect title-like page)
+	my $imager_icon = $imager->scale(xpixels => 200, ypixels => 200, type => 'min');
+	my $photo_icon = get_photo($imager_icon);
+	Tkx::wm_iconphoto($mainWindow{mw}, $photo_icon);
+
+	$mainWindow{label} = $mainWindow{mw}->new_ttk__label(-image => $photo)->g_pack;
+	$mainWindow{mw}->g_wm_title($file);
+
+	my ($height, $width) = (Tkx::image_height $photo, Tkx::image_width $photo);
+
+	$mainWindow{mw}->g_wm_minsize( $width, $height );  # force a size if needed.  Helps with some pack layouts
+	Tkx::MainLoop();
+}
+
+main();

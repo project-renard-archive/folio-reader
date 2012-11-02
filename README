@@ -1,0 +1,20 @@
+The beginning of a document reader. This is far from finished and needs lots of
+refactoring.
+
+Requires from CPAN:
+
+* Moo (libmoo-perl)
+* File::Slurp (libfile-slurp-perl)
+* Imager libimager-perl
+* PDL (pdl)
+* Tkx
+
+Binary packages:
+
+* Tk (tk) (8.5 or greater)
+* Tk-img (libtk-img)
+
+And the packages from:
+
+* <https://github.com/zmughal/fetch-paper>
+* <https://github.com/zmughal/mupdf-perl>

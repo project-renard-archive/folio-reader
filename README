@@ -5,16 +5,24 @@ Requires from CPAN:
 
 * Moo (libmoo-perl)
 * File::Slurp (libfile-slurp-perl)
-* Imager libimager-perl
+* Imager (libimager-perl)
 * PDL (pdl)
 * Tkx
+* MooX::Types::MooseLike
 
 Binary packages:
 
 * Tk (tk) (8.5 or greater)
-* Tk-img (libtk-img)
+* Tk-img (libtk-img) <http://tkimg.sourceforge.net/>
+* Tcldot (libgv-tcl) - Graphviz bindings for Tcl <http://www.graphviz.org/>
+* Tcllib (tcllib) <http://sourceforge.net/projects/tcllib/files/tcllib/>
+* Tklib (tklib) <http://sourceforge.net/projects/tcllib/files/tklib/>
 
 And the packages from:
 
 * <https://github.com/zmughal/fetch-paper>
 * <https://github.com/zmughal/mupdf-perl>
+
+Includes packages:
+
+* icons <http://www.satisoft.com/tcltk/icons/>

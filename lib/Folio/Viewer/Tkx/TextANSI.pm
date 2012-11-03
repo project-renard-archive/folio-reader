@@ -41,4 +41,11 @@ sub insert_ANSI_text {
 	}
 }
 
+sub add_tags {
+	# Set up ANSI tags for text {{{
+	Folio::Viewer::Tkx::TextANSI->add_ANSI_tags($mainWindow{retrieval_resultsinfo_text});
+	$mainWindow{retrieval_resultsinfo_text}->tag_raise('sel');
+	#}}}
+}
+
 1;

@@ -17,6 +17,7 @@ use Set::Scalar;
 
 has id => ( is => 'rw' );
 has main_window => ( is => 'rw' );
+has pool => ( is => 'rw' );
 has file => ( is => 'rw' );
 
 has _window => ( is => 'lazy' );
@@ -58,16 +59,20 @@ sub _build__window {#{{{
 		my $canvas = $self->_widgets->{cv};
 		my $pages_visible = $self->_cv_tags->canvas_visible_tags();
 		my $max_page_no = -1;
+		my $min_page_no = '+Inf';
 		my @pages_to_render;
 		for my $page (@$pages_visible) {
 			next unless $page =~ /page_rect_no_(\d+)/;
 			my $page_no = $1;
 			$max_page_no = List::Util::max($max_page_no, $page_no);
+			$min_page_no = List::Util::min($min_page_no, $page_no);
 			push @pages_to_render, $page_no;
 		}
 		push @pages_to_render, $max_page_no+1
 			unless $max_page_no == $self->document->page_count - 1;
-		$self->render_pages(\@pages_to_render);
+		push @pages_to_render, $min_page_no-1
+			unless $min_page_no == 0;
+		$self->render_pages_pre_thread(\@pages_to_render);
 	};
 
 	$self->_widgets->{cv_autoscroll}->widget->configure(-yscrollcommand => [$scroll_control, 'v'],
@@ -119,7 +124,6 @@ sub add_buffer {#{{{
 	$self->_image->{$id} = Tkx::widget->new(Tkx::image_create_photo());
 	push @{$self->_buffer}, { name => $id , page => -1 };
 }#}}}
-
 sub num_buffer {#{{{
 	my ($self) = @_;
 	scalar @{$self->_buffer};
@@ -128,12 +132,10 @@ sub num_buffer {#{{{
 sub _build_page_manager {#{{{
 	 Folio::Viewer::PageManager::PDF->new();
 }#}}}
-
 sub _build_document {#{{{
 	my ($self) = @_;
 	$self->page_manager->get_document($self->file);
 }#}}}
-
 sub _build_page_geometry {#{{{
 	my ($self) = @_;
 	my $doc_bounds = null;
@@ -144,13 +146,19 @@ sub _build_page_geometry {#{{{
 	croak("Size mismatch") unless $doc_bounds->dim(1) == $self->document->page_count;
 	$doc_bounds;
 }#}}}
-
 sub _build__cv_tags {#{{{
 	my ($self) = @_;
 	Folio::Viewer::Tkx::Canvas->new(canvas => $self->_widgets->{cv});
 }#}}}
 
-sub render_pages {#{{{
+sub publish {
+	my ($self, $job) = @_;
+	if($job->{data}{action} eq 'render_page_post') {
+		$self->render_pages_post_thread($job);
+	}
+}
+
+sub render_pages_pre_thread {#{{{
 	my ($self, $pages) = @_;
 
 	my $pages_in_buffer = Set::Scalar->new(map { $_->{page} } @{$self->_buffer});
@@ -165,27 +173,52 @@ sub render_pages {#{{{
 	my $id_to_use = Set::Scalar->new(map { $_->{name} }
 		grep { $pages_to_remove_not_needed->has($_->{page}) or $_->{page} == -1 }
 		@{$self->_buffer});
-	while (defined(my $id = $id_to_use->each) && defined(my $pg = $pages_to_render_will->each)) {
-		my $tk_photo = $self->_image->{$id};
-		$tk_photo->configure(-data => Folio::Viewer::Tkx::Imager->get_tk_image_data(
-			$self->page_manager->get_document_page_imager($self->file, $pg)
-		));
-		my $b = first { $_->{name} eq $id } @{$self->_buffer};
-		$b->{page} = $pg;
-	}
-	$self->_widgets->{cv}->delete($self->_canvas->{$_}) for
-		grep { /^page_photo/ } keys $self->_canvas;
-	while(defined(my $page = $pages_needed->each)) {
-		my $rect_tag = "page_rect_$page";
-		my $photo_id = $self->_image->{(first { $_->{page} == $page } @{$self->_buffer})->{name}};
-		my @coords = Tkx::SplitList($self->_widgets->{cv}->coords($self->_canvas->{$rect_tag}));
-		$self->_canvas->{"page_photo_$page"} = $self->_widgets->{cv}->create_image(
-			$coords[0], $coords[1],
-			-image => $photo_id,
-			-tags => "page_photo page_photo_no_$page", -anchor => 'nw');
-	}
 
+	while (defined(my $id = $id_to_use->each) && defined(my $page = $pages_to_render_will->each)) {
+		my $job = { doc_pdf => { id => $self->id,
+				data => { action => 'render_page',
+					file => $self->file, id => $id,
+					page => $page } } };
+		$self->pool->add_work($job);
+	}
+	$self->remove_page_photo_canvas_items($pages_to_remove_not_needed->members); # remove pages in render_pages_post_thread?
 }#}}}
+
+sub render_pages_post_thread {#{{{
+	my ($self, $job) = @_;
+	my $id = $job->{data}{id};
+	my $page = $job->{data}{page};
+	my $img_data = $job->{data}{image_data};
+	my $tk_photo = $self->_image->{$id};
+	$tk_photo->configure(-data => $img_data );
+	my $b = first { $_->{name} eq $id } @{$self->_buffer};
+	$b->{page} = $page;
+	my $rect_tag = "page_rect_$page";
+	my $photo_id = $self->_image->{(first { $_->{page} == $page } @{$self->_buffer})->{name}};
+	my @coords = Tkx::SplitList($self->_widgets->{cv}->coords($self->_canvas->{$rect_tag}));
+	$self->_canvas->{"page_photo_$page"} = $self->_widgets->{cv}->create_image(
+		$coords[0], $coords[1],
+		-image => $photo_id,
+		-tags => "page_photo page_photo_no_$page", -anchor => 'nw');
+}
+
+sub remove_page_photo_canvas_items {
+	my ($self, @which) = @_;
+	return unless @which;
+	if($which[0] eq 'all') {
+		for my $key (grep { /^page_photo/ } keys $self->_canvas) {
+			$self->_widgets->{cv}->delete($self->_canvas->{$key});
+			delete $self->_canvas->{$key};
+		}
+	} else {
+		for my $page (@which) {
+			my $tag = "page_photo_$page";
+			next unless exists $self->_canvas->{$tag};
+			$self->_widgets->{cv}->delete($self->_canvas->{$tag});
+			delete $self->_canvas->{$tag};
+		}
+	}
+}
 
 sub draw_pages {#{{{
 	my ($self) = @_;

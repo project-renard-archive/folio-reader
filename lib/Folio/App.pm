@@ -15,9 +15,11 @@ use Moo;
 use MooX::Types::MooseLike::Base qw(:all);
 with qw(Folio::Viewer::Component::Role::Widget);
 
+use Folio::ThreadPool;
 use Folio::Viewer::Tkx::Progress;
 use Folio::Viewer::Component::ProgressManager;
 use Folio::Viewer::Tkx::Icons;
+use Folio::Viewer::Tkx::Timer;
 use Folio::Viewer::Component::DocView;
 
 has main_window => ( is => 'lazy');
@@ -25,6 +27,10 @@ has icons => ( is => 'lazy' );
 has progress_manager => ( is => 'lazy' );
 
 has doc_view => ( is => 'rw', isa => ArrayRef, default => sub { [] } );
+has pool => ( is => 'rw' );
+has components => ( is => 'rw', default => sub { {} } );
+
+has request_cleanup_repeat => ( is => 'rw' , default => sub { \ 1 } );
 
 sub _build_main_window {
 	Tkx::widget->new('.');
@@ -50,6 +56,7 @@ sub run {
 	for my $file (@$ARGV) {
 		$self->create_docview($file)->show;
 	}
+	Folio::Viewer::Tkx::Timer::repeat(50, sub { $self->request_cleanup }, $self->request_cleanup_repeat);
 	Tkx::MainLoop();
 	return 0;
 }
@@ -64,20 +71,38 @@ sub add_buttons {
 		->g_pack;
 }
 
+sub register_component {
+	my ($self, $comp) = @_;
+	$self->components->{$comp->id} = $comp;
+	$comp->pool($self->pool);
+	$comp->main_window($self->main_window);
+}
+
 sub register_docview {
 	my ($self, $dv) = @_;
 	push @{$self->doc_view}, $dv;
+	$self->register_component($dv);
 }
 
 sub create_docview {
 	my ($self, $file) = @_;
-	my $id = scalar @{$self->doc_view};
-	my $dv = Folio::Viewer::Component::DocView->new( main_window => $self->main_window,
-		file => $file, id => $id);
+	my $id = 'doc_'.scalar @{$self->doc_view};
+	my $dv = Folio::Viewer::Component::DocView->new(file => $file, id => $id);
 	$self->register_docview($dv);
 	$dv->add_handlers;
 	$dv;
 }
+
+sub request_cleanup {#{{{
+	my ($self) = @_;
+	#print "repeat\n";
+	while(defined(my $done_job = $self->pool->done->dequeue_nb)) {
+		return unless ${$self->request_cleanup_repeat};
+		next unless exists $done_job->{id};
+		next unless exists $self->components->{$done_job->{id}};
+		$self->components->{$done_job->{id}}->publish($done_job);
+	}
+}#}}}
 
 sub register_query {
 

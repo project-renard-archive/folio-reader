@@ -10,6 +10,8 @@ Requires from CPAN:
 * Set::Scalar (libset-scalar-perl)
 * Tkx
 * MooX::Types::MooseLike
+* forks (libforks-perl)
+* Thread::Pool::Simple (libthread-pool-simple-perl)
 
 Binary packages:
 

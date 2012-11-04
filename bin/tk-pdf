@@ -1,17 +1,25 @@
 #!/usr/bin/env perl
 
 BEGIN {#{{{
-	local $ENV{PERL_DL_NONLAZY} = 1;
-	#$ENV{PERL_TKX_TRACE} = 64;
-	require Tkx;
-	local $ENV{PERL_DL_NONLAZY} = 0;
+	$ENV{PERL_DL_NONLAZY} = 1;
 	$|=1; # TODO
 }#}}}
 use strict;
 use FindBin qw($Bin);
 use lib "$Bin/../lib";
-use Folio::App;
+use forks;
 
-exit Folio::App->new->run(\@ARGV);
+use Folio::ThreadPool;
+my $pool = Folio::ThreadPool->new;
+$pool->start;
+
+#sub clean_up {
+	# TODO
+#}
+#$SIG{INT} = 'clean_up';
+
+require Folio::App;
+$ENV{PERL_DL_NONLAZY} = 0;
+exit Folio::App->new(pool => $pool)->run(\@ARGV);
 
 # vim: fdm=marker

@@ -75,6 +75,7 @@ sub create_docview {
 	my $dv = Folio::Viewer::Component::DocView->new( main_window => $self->main_window,
 		file => $file, id => $id);
 	$self->register_docview($dv);
+	$dv->add_handlers;
 	$dv;
 }
 

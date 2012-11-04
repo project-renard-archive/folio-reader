@@ -31,7 +31,7 @@ has _image => ( is => 'rw', default => sub { {} }, clearer => '__clear_image' );
 has _buffer => ( is => 'rw', isa => ArrayRef, default => sub {[]} );
 
 
-sub _build__window {
+sub _build__window {#{{{
 	my ($self) = @_;
 	my $w = $self->main_window->new_toplevel(-name => ".docview_@{[$self->id]}");
 
@@ -82,57 +82,59 @@ sub _build__window {
 	$w->g_wm_title($self->file);
 
 	$self->draw_pages;
+	$self->_widgets->{cv}->xview(moveto => 0);
+	$self->_widgets->{cv}->yview(moveto => 0);
 
 	$w;
-}
+}#}}}
 
-sub hide {
+sub hide {#{{{
 	my ($self) = @_;
 	$self->_window->g_wm_withdraw;
-}
+}#}}}
 
-sub show {
+sub show {#{{{
 	my ($self) = @_;
 	$self->_window->g_wm_deiconify;
-}
+}#}}}
 
-sub DEMOLISH {
+sub DEMOLISH {#{{{
 	my ($self) = @_;
 	$self->__clear_canvas_item;
 	$self->__clear_image;
-}
-sub __clear_canvas {
+}#}}}
+sub __clear_canvas {#{{{
 	my ($self) = @_;
 	Tkx::canvas_delete(keys $self->_canvas);
-}
-sub __clear_image {
+}#}}}
+sub __clear_image {#{{{
 	my ($self) = @_;
 	Tkx::image_delete(keys $self->_image);
-}
+}#}}}
 
-sub add_buffer {
+sub add_buffer {#{{{
 	my ($self) = @_;
 	my $num = $self->num_buffer;
 	my $id = 'buffer'.$num;
 	$self->_image->{$id} = Tkx::widget->new(Tkx::image_create_photo());
 	push @{$self->_buffer}, { name => $id , page => -1 };
-}
+}#}}}
 
-sub num_buffer {
+sub num_buffer {#{{{
 	my ($self) = @_;
 	scalar @{$self->_buffer};
-}
+}#}}}
 
-sub _build_page_manager {
+sub _build_page_manager {#{{{
 	 Folio::Viewer::PageManager::PDF->new();
-}
+}#}}}
 
-sub _build_document {
+sub _build_document {#{{{
 	my ($self) = @_;
 	$self->page_manager->get_document($self->file);
-}
+}#}}}
 
-sub _build_page_geometry {
+sub _build_page_geometry {#{{{
 	my ($self) = @_;
 	my $doc_bounds = null;
 	for my $page_num (0..$self->document->page_count-1) {
@@ -141,14 +143,14 @@ sub _build_page_geometry {
 	}
 	croak("Size mismatch") unless $doc_bounds->dim(1) == $self->document->page_count;
 	$doc_bounds;
-}
+}#}}}
 
-sub _build__cv_tags {
+sub _build__cv_tags {#{{{
 	my ($self) = @_;
 	Folio::Viewer::Tkx::Canvas->new(canvas => $self->_widgets->{cv});
-}
+}#}}}
 
-sub render_pages {
+sub render_pages {#{{{
 	my ($self, $pages) = @_;
 
 	my $pages_in_buffer = Set::Scalar->new(map { $_->{page} } @{$self->_buffer});
@@ -177,22 +179,19 @@ sub render_pages {
 		my $rect_tag = "page_rect_$page";
 		my $photo_id = $self->_image->{(first { $_->{page} == $page } @{$self->_buffer})->{name}};
 		my @coords = Tkx::SplitList($self->_widgets->{cv}->coords($self->_canvas->{$rect_tag}));
-		use DDP; p $rect_tag;
-		my $c = \@coords;
-		use DDP; p $c;
 		$self->_canvas->{"page_photo_$page"} = $self->_widgets->{cv}->create_image(
 			$coords[0], $coords[1],
 			-image => $photo_id,
 			-tags => "page_photo page_photo_no_$page", -anchor => 'nw');
 	}
 
-}
+}#}}}
 
 sub draw_pages {#{{{
 	my ($self) = @_;
 	my $pages_pdl = $self->page_geometry;
 	my $inter_page_px = 10;
-	my $cv_height = sclr(sumover($pages_pdl->xchg(0,1))->slice('1') + ($pages_pdl->dim(1)-1)*$inter_page_px);
+	my $cv_height = sclr(sumover($pages_pdl->transpose)->slice('1') + ($pages_pdl->dim(1)-1)*$inter_page_px);
 	my $max_page_height = max($pages_pdl->slice('1,:'));
 	my $max_page_width = max($pages_pdl->slice('0,:'));
 	my $cv_width_h = ceil($max_page_width/2.0)->sclr;
@@ -209,6 +208,18 @@ sub draw_pages {#{{{
 		$top_left_y += $page_height + 10;
 	}
 }#}}}
+
+sub add_handlers {
+	my ($self) = @_;
+	$self->_window->g_bind('<Button-5>', [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
+	$self->_window->g_bind('<Button-4>', [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
+	$self->_window->g_bind('<space>',    [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
+	$self->_window->g_bind('<b>',        [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
+	$self->_window->g_bind('<Next>',     [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
+	$self->_window->g_bind('<Prior>',    [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
+	$self->_window->g_bind('j',          [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
+	$self->_window->g_bind('k',          [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
+}
 
 1;
 __END__

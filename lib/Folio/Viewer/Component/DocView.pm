@@ -278,7 +278,7 @@ sub draw_pages {#{{{
 				-tags => "page_rect page_rect_no_$page");
 		$self->_canvas_page_x->[$page] = 0-$page_width/2;
 		$self->_canvas_page_y->[$page] = $top_left_y;
-		$top_left_y += $page_height + 10;
+		$top_left_y += $page_height + $inter_page_px;
 	}
 	$self->draw_annotations if $self->annotation;
 }#}}}

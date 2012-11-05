@@ -329,7 +329,6 @@ sub draw_annotations {#{{{
 			->create_rectangle($ax, $ay,
 				$ax+$w*$mult, $ay+$h*$mult,
 				-outline => 'red',
-				-fill => 'yellow', -stipple => 'gray12',
 				-dash => '-',
 				-tags => "annotation annotation_no_$a");
 		$self->_canvas->{"annotation_text_$a"} = $self->_widgets->{cv}
@@ -363,7 +362,6 @@ sub make_annotation {
 			$self->_canvas->{"annotation_cur"} = $self->_widgets->{cv}
 				->create_rectangle($cx, $cy, $cx, $cy,
 					-dash => ',',
-					-fill => 'blue', -stipple => 'gray12',
 					-tags => "annotation annotation_cur");
 		} else {
 			$self->_in_annotation_mode(0); # stop it

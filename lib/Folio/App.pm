@@ -48,6 +48,7 @@ sub _build_icons {
 
 sub run {
 	my ($self, $ARGV) = @_;
+	Tkx::ttk__style_theme_use("clam");
 	$self->icons;
 	$self->add_buttons();
 	$self->main_window->g_wm_geometry(q{+0+0});
@@ -227,7 +228,6 @@ sub request_cleanup {#{{{
 #}}}
 
 sub init_main {#{{{
-	Tkx::ttk__style_theme_use("clam");
 	addMainWindow();
 	addRetrievalWindow();
 	addCanvasWindow();

@@ -12,6 +12,8 @@ Requires from CPAN:
 * MooX::Types::MooseLike
 * forks (libforks-perl)
 * Thread::Pool::Simple (libthread-pool-simple-perl)
+* YAML::XS (libyaml-libyaml-perl)
+* Try::Tiny (libtry-tiny-perl)
 
 Binary packages:
 

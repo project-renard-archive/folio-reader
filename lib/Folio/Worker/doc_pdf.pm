@@ -13,8 +13,9 @@ sub work {
 		$job->{data}{action} = 'render_page_post';
 		my $file = $job->{data}{file};
 		my $page = $job->{data}{page};
+		my $zoom = $job->{data}{zoom};
 		$job->{data}{image_data} = Folio::Viewer::Tkx::Imager->get_tk_image_data(
-			$pm->get_document_page_imager($file, $page));
+			$pm->get_document_page_imager($file, $page, $zoom ));
 	}
 	return $job;
 }

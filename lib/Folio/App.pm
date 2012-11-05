@@ -11,6 +11,7 @@ BEGIN {
 	Tkx::package_require("Tcldot");
 	Tkx::package_require("Tablelist");
 }
+use Scalar::Util qw/looks_like_number/;
 use Moo;
 use MooX::Types::MooseLike::Base qw(:all);
 with qw(Folio::Viewer::Component::Role::Widget);
@@ -54,8 +55,13 @@ sub run {
 	$self->main_window->g_wm_geometry(q{+0+0});
 	$self->progress_manager->show;
 	$self->add_handlers;
+	my $prev;
 	for my $file (@$ARGV) {
-		$self->create_docview($file)->show;
+		if(looks_like_number($file)) { # TODO proper arg handling
+			$prev->goto_page($file);
+			next;
+		}
+		($prev = $self->create_docview($file))->show;
 	}
 	Folio::Viewer::Tkx::Timer::repeat(50, sub { $self->request_cleanup }, $self->request_cleanup_repeat);
 	Tkx::MainLoop();

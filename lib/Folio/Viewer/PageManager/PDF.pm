@@ -23,15 +23,11 @@ sub get_document {
 }
 
 sub get_document_page_imager {
-	my ($self, $filename, $page_num) = @_;
-	my $doc = $self->get_document($filename);
+	my ($self, $filename, $page_num, $zoom) = @_;
 
-	my $page = $doc->get_page($self->_context->fz_context, $page_num);
-
-	my $rect = $page->bounds;
-	my $transform = MuPDF::Easy::Transform->identity;
-	$rect = MuPDF::SWIG::fz_transform_rect($transform, $rect);
-	my $bbox = MuPDF::SWIG::fz_round_rect($rect);
+	my ($page, $transform, $bbox) = @{get_page_param(@_)};
+	#use DDP; p ($page, $transform, $bbox);
+	#use DDP; p $page;
 
 	my $pixmap = MuPDF::Easy::Pixmap->new(fz_context => $self->_context->fz_context,
 		bbox => $bbox,
@@ -40,15 +36,23 @@ sub get_document_page_imager {
 	my $imager = $pixmap->get_imager();
 }
 
-sub get_page_bounds {
-	my ($self, $filename, $page_num) = @_;
+sub get_page_param {
+	my ($self, $filename, $page_num, $zoom) = @_;
+	$zoom //= 100;
 	my $doc = $self->get_document($filename);
-
 	my $page = $doc->get_page($self->_context->fz_context, $page_num);
 	my $rect = $page->bounds;
-	my $transform = MuPDF::Easy::Transform->identity;
+	my $identity = MuPDF::Easy::Transform->identity;
+	my $zoom_trans = MuPDF::Easy::Transform->percentage_zoom($zoom);
+	my $transform = MuPDF::Easy::Transform->concat($zoom_trans, $identity);
 	$rect = MuPDF::SWIG::fz_transform_rect($transform, $rect);
 	my $bbox = MuPDF::SWIG::fz_round_rect($rect);
+	return [$page, $transform, $bbox];
+}
+
+sub get_page_bounds {
+	my ($self, $filename, $page_num, $zoom) = @_;
+	my $bbox = get_page_param(@_)->[2];
 	[$bbox->swig_x1_get - $bbox->swig_x0_get, $bbox->swig_y1_get - $bbox->swig_y0_get];
 }
 

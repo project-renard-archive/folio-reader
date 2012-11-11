@@ -411,6 +411,8 @@ sub add_handlers {
 	$self->_window->g_bind('<Prior>',    [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
 	$self->_window->g_bind('j',          [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
 	$self->_window->g_bind('k',          [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
+	$self->_window->g_bind('h',          [sub {$self->_widgets->{cv}->xview( scroll => @_, 'units')}, -1]);
+	$self->_window->g_bind('l',          [sub {$self->_widgets->{cv}->xview( scroll => @_, 'units')}, 1]);
 
 	$self->_window->g_bind('<Button-1>', [sub {$self->make_annotation(@_) }, Tkx::Ev("%x","%y")]);
 	$self->_window->g_bind('<Button-3>', [sub {$self->make_annotation('del') }, Tkx::Ev("%x","%y")]);

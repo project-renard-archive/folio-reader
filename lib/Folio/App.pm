@@ -61,6 +61,11 @@ sub run {
 			$prev->goto_page($file);
 			next;
 		}
+		if($file =~ /^(\d+)%/) { # TODO proper arg handling
+			my $new_zoom = "$1";
+			$prev->zoom_change($new_zoom-$prev->zoom);
+			next;
+		}
 		($prev = $self->create_docview($file))->show;
 	}
 	Folio::Viewer::Tkx::Timer::repeat(50, sub { $self->request_cleanup }, $self->request_cleanup_repeat);

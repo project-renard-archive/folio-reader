@@ -292,7 +292,7 @@ sub build_annotation_data {#{{{
 		carp "Annotation file does not exist: will create";
 	};
 	use DDP; p $h;
-	return {} unless keys $h;
+	return {} unless keys ($h // {});
 	$h;
 }#}}}
 

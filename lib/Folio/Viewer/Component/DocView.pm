@@ -38,7 +38,7 @@ has base_font_size => ( is => 'rw', default => sub { 11; }  );
 has _window => ( is => 'lazy' );
 
 has page_manager => ( is => 'lazy' );
-has page_geometry => ( is => 'lazy', isa => InstanceOf['PDL'], clearer => 1 );
+has page_geometry => ( is => 'lazy', clearer => 1 );
 has _canvas_page_y => ( is => 'rw', isa => ArrayRef, default => sub{[]}, clearer => 1 );
 has _canvas_page_x => ( is => 'rw', isa => ArrayRef, default => sub{[]}, clearer => 1 );
 has document => ( is => 'lazy' );

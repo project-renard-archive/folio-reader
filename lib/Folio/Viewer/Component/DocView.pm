@@ -1,6 +1,7 @@
 # vim: fdm=marker
 package Folio::Viewer::Component::DocView;
 
+# use {{{
 use strict;
 use warnings;
 use Moo;
@@ -18,7 +19,9 @@ use File::Basename;
 use YAML::XS qw/LoadFile DumpFile/;
 use Carp;
 use Try::Tiny;
+#}}}
 
+# Attributes {{{
 has id => ( is => 'rw' );
 has main_window => ( is => 'rw' );
 has pool => ( is => 'rw' );
@@ -47,7 +50,7 @@ has _cv_tags => ( is => 'lazy' );
 has _canvas => ( is => 'rw', isa => HashRef, default => sub { {} }, clearer => '__clear_canvas' );
 has _image => ( is => 'rw', default => sub { {} }, clearer => '__clear_image' );
 has _buffer => ( is => 'rw', isa => ArrayRef, default => sub {[]}, clearer => 1 );
-
+#}}}
 
 sub _build__window {#{{{
 	my ($self) = @_;
@@ -346,7 +349,7 @@ sub _build_annotation_file {#{{{
 	return join '', (fileparse($self->file,qw/.pdf/),'.ann')[qw/1 0 3/];
 }#}}}
 
-sub make_annotation {
+sub make_annotation {#{{{
 	my ($self, $x, $y) = @_;
 	if($self->annotation) {
 		if($x eq 'del') {
@@ -387,21 +390,21 @@ sub make_annotation {
 			$self->toggle_annotations; $self->toggle_annotations; # force complete redraw
 		}
 	}
-}
+}#}}}
 
-sub move_annotation {
+sub move_annotation {#{{{
 	my ($self, $x, $y) = @_;
 	if($self->_in_annotation_mode) {
 		my ($cx, $cy) = ($self->_widgets->{cv}->canvasx($x), $self->_widgets->{cv}->canvasy($y));
 		$self->_widgets->{cv}->coords('annotation_cur', $self->_in_annotation_mode_sx, $self->_in_annotation_mode_sy, $cx, $cy);
 	}
-}
+}#}}}
 
-sub add_annotation {
+sub add_annotation {#{{{
 	my ($self, $page, ) = @_;
-}
+}#}}}
 
-sub add_handlers {
+sub add_handlers {#{{{
 	my ($self) = @_;
 	$self->_window->g_bind('<Button-5>', [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
 	$self->_window->g_bind('<Button-4>', [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
@@ -425,16 +428,16 @@ sub add_handlers {
 	$self->_window->g_bind('+', [sub {$self->zoom_change( 10)}, -1]);
 
 	$self->_window->g_bind('q',          [sub {Tkx::exit()}, 0]);
-}
+}#}}}
 
-sub zoom_change {
+sub zoom_change {#{{{
 	my ($self, $change) = @_;
 	$self->prev_zoom($self->zoom);
 	$self->zoom( $self->zoom + $change );
 	$self->redraw;
-}
+}#}}}
 
-sub redraw {
+sub redraw {#{{{
 	my ($self) = @_;
 
 	$self->_widgets->{cv}->delete(values $self->_canvas);
@@ -457,10 +460,9 @@ sub redraw {
 	#$self->_widgets->{cv}->xview(moveto => $xv);
 	#$self->_widgets->{cv}->yview(moveto => $yv);
 	$self->render_pages;
-}
+}#}}}
 
-sub render_pages
-{
+sub render_pages {#{{{
 	my ($self) = @_;
 	my $canvas = $self->_widgets->{cv};
 	my $pages_visible = $self->_cv_tags->canvas_visible_tags();
@@ -479,6 +481,6 @@ sub render_pages
 	push @pages_to_render, $min_page_no-1
 		unless $min_page_no == 0;
 	$self->render_pages_pre_thread(\@pages_to_render);
-}
+}#}}}
 
 1;

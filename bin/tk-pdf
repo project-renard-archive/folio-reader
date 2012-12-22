@@ -13,13 +13,21 @@ use Folio::ThreadPool;
 my $pool = Folio::ThreadPool->new;
 $pool->start;
 
-#sub clean_up {
-	# TODO
-#}
-#$SIG{INT} = 'clean_up';
+my $cleanup = {};
+
+sub clean_up {
+    for(@{$cleanup->{join}}) {
+	$_->{data}{render_thread}->stop;
+	$_->{data}{tid}->join;
+    }
+    Tkx::exit();
+}
+$SIG{INT} = 'clean_up';
 
 require Folio::App;
 $ENV{PERL_DL_NONLAZY} = 0;
-exit Folio::App->new(pool => $pool)->run(\@ARGV);
+my $return = Folio::App->new(pool => $pool, cleanup => $cleanup)->run(\@ARGV);
+clean_up();
+exit $return;
 
 # vim: fdm=marker

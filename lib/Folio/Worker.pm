@@ -3,7 +3,7 @@ package Folio::Worker;
 use strict;
 use warnings;
 use Module::Load;
-use Folio::Worker::doc_pdf;
+use Folio::Worker::build_render_thread;
 
 sub work_router {
 	my ($self, $job_items) = @_;

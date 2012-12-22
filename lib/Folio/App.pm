@@ -29,7 +29,10 @@ has progress_manager => ( is => 'lazy' );
 
 has doc_view => ( is => 'rw', isa => ArrayRef, default => sub { [] } );
 has pool => ( is => 'rw' );
+has cleanup => ( is => 'rw' );
 has components => ( is => 'rw', default => sub { {} } );
+
+has id => ( is => 'rw', default => sub { 'main_component' }  );
 
 has request_cleanup_repeat => ( is => 'rw' , default => sub { \ 1 } );
 
@@ -55,9 +58,9 @@ sub run {
 	$self->main_window->g_wm_geometry(q{+0+0});
 	$self->progress_manager->show;
 	$self->add_handlers;
-	my $prev;
+	$self->register_self;
 	for my $file (@$ARGV) {
-		($prev = $self->create_docview($file))->show;
+		$self->create_docview($file)
 	}
 	Folio::Viewer::Tkx::Timer::repeat(50, sub { $self->request_cleanup }, $self->request_cleanup_repeat);
 	Tkx::MainLoop();
@@ -74,38 +77,74 @@ sub add_buttons {
 		->g_pack;
 }
 
+sub register_self {
+	my ($self) = @_;
+	$self->components->{$self->id} = $self;
+	# TODO weak
+}
+
 sub register_component {
-	my ($self, $comp) = @_;
+	my ($self, $comp, $pool) = @_;
 	$self->components->{$comp->id} = $comp;
-	$comp->pool($self->pool);
+	$comp->pool($self->pool) if $pool;
 	$comp->main_window($self->main_window);
 }
 
 sub register_docview {
 	my ($self, $dv) = @_;
 	push @{$self->doc_view}, $dv;
-	$self->register_component($dv);
+	$self->register_component($dv, 0);
 }
 
 sub create_docview {
 	my ($self, $file) = @_;
+
+	$self->pool->add_work({ build_render_thread => { id => $self->id,
+		data=> { action => 'build_render_thread', file => $file }
+	}});
+}
+
+sub create_docview_post_thread {
+	my ($self, $job) = @_;
+
 	my $id = 'doc_'.scalar @{$self->doc_view};
+	my $file = $job->{data}{file};
 	my $dv = Folio::Viewer::Component::DocView->new(file => $file, id => $id);
 	$self->register_docview($dv);
+	#$dv->pool($self->pool);
+	$dv->pool($job->{data}{render_thread});
 	$dv->add_handlers;
-	$dv;
+	push @{$self->cleanup->{join}}, $job;
+		# TODO store this in a DS to join using threadpool
+	$dv->show;
 }
 
 sub request_cleanup {#{{{
 	my ($self) = @_;
 	#print "repeat\n";
-	while(defined(my $done_job = $self->pool->done->dequeue_nb)) {
+	$self->process_done_queue($self->pool->done);
+	for(grep { /^doc_/ } keys %{$self->components}) {
+		my $queue = $self->components->{$_}->pool->done;
+		$self->process_done_queue($queue);
+	}
+}#}}}
+
+sub process_done_queue {
+	my ($self, $queue) = @_;
+	while(defined(my $done_job = $queue->dequeue_nb)) {
 		return unless ${$self->request_cleanup_repeat};
 		next unless exists $done_job->{id};
 		next unless exists $self->components->{$done_job->{id}};
 		$self->components->{$done_job->{id}}->publish($done_job);
 	}
-}#}}}
+}
+
+sub publish {
+	my ($self, $job) = @_;
+	if( $job->{data}{action} eq 'build_render_thread_post') {
+		$self->create_docview_post_thread($job);
+	}
+}
 
 sub register_query {
 

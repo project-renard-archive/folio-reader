@@ -427,7 +427,7 @@ sub add_handlers {#{{{
 	$self->_window->g_bind('-', [sub {$self->zoom_change(-10)}, 1]);
 	$self->_window->g_bind('+', [sub {$self->zoom_change( 10)}, -1]);
 
-	$self->_window->g_bind('q',          [sub {Tkx::exit()}, 0]);
+	#$self->_window->g_bind('q',          [sub {Tkx::exit()}, 0]);
 }#}}}
 
 sub zoom_change {#{{{

@@ -34,8 +34,8 @@ sub run {
 			my $zoom = $job->{data}{zoom};
 			$job->{data}{image_data} = Folio::Viewer::Tkx::Imager->get_tk_image_data(
 				$self->page_manager->get_document_page_imager($file, $page, $zoom ));
-			$self->done->enqueue($job);
 		}
+		$self->done->enqueue($job);
 	}
 }
 

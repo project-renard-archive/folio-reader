@@ -52,6 +52,33 @@ has _image => ( is => 'rw', builder => 1, clearer => '__clear_image' );
 has _buffer => ( is => 'rw', isa => ArrayRef, builder => 1, clearer => '__clear_buffer' );
 #}}}
 
+sub publish {#{{{
+	my ($self, $job) = @_;
+	if($job->{data}{action} eq 'render_page_post') {
+		$self->render_pages_post_thread($job);
+	} elsif($job->{data}{action} eq 'goto_page') {
+		$self->goto_page_job($job);
+	}
+}#}}}
+
+# Page image buffer {{{
+after __clear_buffer => sub { $_[0]->_buffer($_[0]->_build__buffer) };
+sub _build__buffer {[]}
+sub add_buffer {#{{{
+	my ($self) = @_;
+	my $num = $self->num_buffer;
+	my $id = 'buffer'.$num;
+	$self->_image->{$id} = Tkx::widget->new(Tkx::image_create_photo());
+	push @{$self->_buffer}, { name => $id , page => -1 };
+	return $id;
+}#}}}
+sub num_buffer {#{{{
+	my ($self) = @_;
+	scalar @{$self->_buffer};
+}#}}}
+#}}}
+# Build and cleanup {{{
+# Window {{{
 sub _build__window {#{{{
 	my ($self) = @_;
 	my $w = $self->main_window->new_toplevel(-name => ".docview_@{[$self->id]}");
@@ -97,51 +124,15 @@ sub _build__window {#{{{
 
 	$w;
 }#}}}
-
 sub hide {#{{{
 	my ($self) = @_;
 	$self->_window->g_wm_withdraw;
 }#}}}
-
 sub show {#{{{
 	my ($self) = @_;
 	$self->_window->g_wm_deiconify;
 }#}}}
-
-sub DEMOLISH {#{{{
-	my ($self) = @_;
-	$self->__clear_canvas;
-	$self->__clear_image;
-}#}}}
-before __clear_canvas => sub {#{{{
-	my ($self) = @_;
-	$self->_widgets->{cv}->delete(values $self->_canvas);
-};#}}}
-after __clear_canvas => sub { $_[0]->_canvas($_[0]->_build__canvas) };
-sub _build__canvas { {} }
-before __clear_image => sub {#{{{
-	my ($self) = @_;
-	Tkx::image_delete(values $self->_image);
-};#}}}
-after __clear_image => sub { $_[0]->_image($_[0]->_build__image) };
-sub _build__image { {} }
-
-after __clear_buffer => sub { $_[0]->_buffer($_[0]->_build__buffer) };
-sub _build__buffer {[]}
-
-sub add_buffer {#{{{
-	my ($self) = @_;
-	my $num = $self->num_buffer;
-	my $id = 'buffer'.$num;
-	$self->_image->{$id} = Tkx::widget->new(Tkx::image_create_photo());
-	push @{$self->_buffer}, { name => $id , page => -1 };
-	return $id;
-}#}}}
-sub num_buffer {#{{{
-	my ($self) = @_;
-	scalar @{$self->_buffer};
-}#}}}
-
+#}}}
 sub _build_page_manager {#{{{
 	 Folio::Viewer::PageManager::PDF->new();
 }#}}}
@@ -164,80 +155,25 @@ sub _build__cv_tags {#{{{
 	Folio::Viewer::Tkx::Canvas->new(canvas => $self->_widgets->{cv});
 }#}}}
 
-sub publish {#{{{
-	my ($self, $job) = @_;
-	if($job->{data}{action} eq 'render_page_post') {
-		$self->render_pages_post_thread($job);
-	} elsif($job->{data}{action} eq 'goto_page') {
-		$self->goto_page_job($job);
-	}
+sub DEMOLISH {#{{{
+	my ($self) = @_;
+	$self->__clear_canvas;
+	$self->__clear_image;
 }#}}}
-
-sub render_pages_pre_thread {#{{{
-	my ($self, $pages) = @_;
-
-	my $pages_in_buffer = Set::Scalar->new(map { $_->{page} } @{$self->_buffer});
-	my $pages_needed = Set::Scalar->new(@$pages);
-
-	my $pages_to_render_done = $pages_needed->intersection($pages_in_buffer);
-	my $pages_to_render_will = $pages_needed-$pages_to_render_done;
-	my $pages_to_remove_not_needed = $pages_in_buffer-$pages_to_render_done;
-	my $buffers_needed = $pages_to_render_will->size - $pages_to_remove_not_needed->size;
-	$self->add_buffer() for(0..$buffers_needed-1);
-
-	my $id_to_use = Set::Scalar->new(map { $_->{name} }
-		grep { $pages_to_remove_not_needed->has($_->{page}) or $_->{page} == -1 }
-		@{$self->_buffer});
-
-	while (defined(my $id = $id_to_use->each) && defined(my $page = $pages_to_render_will->each)) {
-		my $job = { doc_pdf => { id => $self->id,
-				data => { action => 'render_page',
-					file => $self->file, id => $id,
-					page => $page, zoom => $self->zoom } } };
-		$self->pool->add_work($job);
-	}
-	$self->remove_page_photo_canvas_items($pages_to_remove_not_needed->members); # remove pages in render_pages_post_thread?
-}#}}}
-
-sub render_pages_post_thread {#{{{
-	my ($self, $job) = @_;
-	return unless $job->{data}{zoom} == $self->zoom; # TODO This a problem with how jobs come in without being validated for a given page state.
-	my $id = $job->{data}{id};
-	my $page = $job->{data}{page};
-	my $img_data = $job->{data}{image_data};
-	my $tk_photo = $self->_image->{$id};
-	$tk_photo->configure(-data => $img_data );
-	my $b = first { $_->{name} eq $id } @{$self->_buffer};
-	$b->{page} = $page;
-	my $rect_tag = "page_rect_$page";
-	my $photo_id = $self->_image->{(first { $_->{page} == $page } @{$self->_buffer})->{name}};
-	my @coords = Tkx::SplitList($self->_widgets->{cv}->coords($self->_canvas->{$rect_tag}));
-	$self->_canvas->{"page_photo_$page"} = $self->_widgets->{cv}->create_image(
-		$coords[0], $coords[1],
-		-image => $photo_id,
-		-tags => "page_photo page_photo_no_$page", -anchor => 'nw');
-
-	$self->_widgets->{cv}->lower('page_photo', 'annotation');
-}#}}}
-
-sub remove_page_photo_canvas_items {#{{{
-	my ($self, @which) = @_;
-	return unless @which;
-	if($which[0] eq 'all') {
-		for my $key (grep { /^page_photo/ } keys $self->_canvas) {
-			$self->_widgets->{cv}->delete($self->_canvas->{$key});
-			delete $self->_canvas->{$key};
-		}
-	} else {
-		for my $page (@which) {
-			my $tag = "page_photo_$page";
-			next unless exists $self->_canvas->{$tag};
-			$self->_widgets->{cv}->delete($self->_canvas->{$tag});
-			delete $self->_canvas->{$tag};
-		}
-	}
-}#}}}
-
+before __clear_canvas => sub {#{{{
+	my ($self) = @_;
+	$self->_widgets->{cv}->delete(values $self->_canvas);
+};#}}}
+after __clear_canvas => sub { $_[0]->_canvas($_[0]->_build__canvas) };
+sub _build__canvas { {} }
+before __clear_image => sub {#{{{
+	my ($self) = @_;
+	Tkx::image_delete(values $self->_image);
+};#}}}
+after __clear_image => sub { $_[0]->_image($_[0]->_build__image) };
+sub _build__image { {} }
+#}}}
+# Goto page {{{
 sub goto_page {#{{{
 	my ($self, $page) = @_;
 	my $job = { doc_pdf => { id => $self->id,
@@ -245,7 +181,6 @@ sub goto_page {#{{{
 				page => $page, zoom => $self->zoom } } };
 	$self->pool->add_work($job);
 }#}}}
-
 sub goto_page_actual {#{{{
 	my ($self, $page) = @_;
 	my @scroll_region = Tkx::SplitList($self->_widgets->{cv}->cget('-scrollregion'));
@@ -255,43 +190,14 @@ sub goto_page_actual {#{{{
 	$self->_widgets->{cv}->xview(moveto => $xf);
 	$self->_widgets->{cv}->yview(moveto => $yf);
 }#}}}
-
 sub goto_page_job {#{{{
 	my ($self, $job) = @_;
 	return unless $job->{data}{zoom} == $self->zoom; # TODO This a problem with how jobs come in without being validated for a given page state.
 	my $page = $job->{data}{page};
 	$self->goto_page_actual($page);
 }#}}}
-
-sub draw_pages {#{{{
-	my ($self) = @_;
-	my $pages_pdl = $self->page_geometry;
-	my $num_pages = $pages_pdl->dim(1);
-	my $inter_page_px = 10;
-	my $cv_height = sclr(sumover($pages_pdl->transpose)->slice('1') + ($pages_pdl->dim(1)-1)*$inter_page_px);
-	my $max_page_height = max($pages_pdl->slice('1,:'));
-	my $max_page_width = max($pages_pdl->slice('0,:'));
-	my $cv_width_h = ceil($max_page_width/2.0)->sclr;
-	$self->_widgets->{cv}->configure(-scrollregion => qq/-$cv_width_h 0 $cv_width_h $cv_height/);
-
-	$self->_canvas_page_x->[$num_pages-1] = 0;
-	$self->_canvas_page_y->[$num_pages-1] = 0;
-
-	my $top_left_y = 0;
-	for my $page (0..$pages_pdl->dim(1)-1) {
-		my ($page_width, $page_height) = $pages_pdl->slice(":,$page")->list;
-		$self->_canvas->{"page_rect_$page"} = $self->_widgets->{cv}
-			->create_rectangle(0-$page_width/2, $top_left_y,
-				$page_width/2, $top_left_y+$page_height,
-				-fill => 'red',
-				-tags => "page_rect page_rect_no_$page");
-		$self->_canvas_page_x->[$page] = 0-$page_width/2;
-		$self->_canvas_page_y->[$page] = $top_left_y;
-		$top_left_y += $page_height + $inter_page_px;
-	}
-	$self->draw_annotations if $self->annotation;
-}#}}}
-
+#}}}
+# Annotations {{{
 sub build_annotation_data {#{{{
 	my ($self) = @_;
 	my $h;
@@ -405,7 +311,8 @@ sub move_annotation {#{{{
 		$self->_widgets->{cv}->coords('annotation_cur', $self->_in_annotation_mode_sx, $self->_in_annotation_mode_sy, $cx, $cy);
 	}
 }#}}}
-
+#}}}
+# Keybindings {{{
 sub add_handlers {#{{{
 	my ($self) = @_;
 	$self->_window->g_bind('<Button-5>', [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
@@ -431,14 +338,44 @@ sub add_handlers {#{{{
 
 	#$self->_window->g_bind('q',          [sub {Tkx::exit()}, 0]);
 }#}}}
-
+#}}}
+# Zoom {{{
 sub zoom_change {#{{{
 	my ($self, $change) = @_;
 	$self->prev_zoom($self->zoom);
 	$self->zoom( $self->zoom + $change );
 	$self->redraw;
 }#}}}
+#}}}
+# Draw pages {{{
+sub draw_pages {#{{{
+	my ($self) = @_;
+	my $pages_pdl = $self->page_geometry;
+	my $num_pages = $pages_pdl->dim(1);
+	my $inter_page_px = 10;
+	my $cv_height = sclr(sumover($pages_pdl->transpose)->slice('1') + ($pages_pdl->dim(1)-1)*$inter_page_px);
+	my $max_page_height = max($pages_pdl->slice('1,:'));
+	my $max_page_width = max($pages_pdl->slice('0,:'));
+	my $cv_width_h = ceil($max_page_width/2.0)->sclr;
+	$self->_widgets->{cv}->configure(-scrollregion => qq/-$cv_width_h 0 $cv_width_h $cv_height/);
 
+	$self->_canvas_page_x->[$num_pages-1] = 0;
+	$self->_canvas_page_y->[$num_pages-1] = 0;
+
+	my $top_left_y = 0;
+	for my $page (0..$pages_pdl->dim(1)-1) {
+		my ($page_width, $page_height) = $pages_pdl->slice(":,$page")->list;
+		$self->_canvas->{"page_rect_$page"} = $self->_widgets->{cv}
+			->create_rectangle(0-$page_width/2, $top_left_y,
+				$page_width/2, $top_left_y+$page_height,
+				-fill => 'red',
+				-tags => "page_rect page_rect_no_$page");
+		$self->_canvas_page_x->[$page] = 0-$page_width/2;
+		$self->_canvas_page_y->[$page] = $top_left_y;
+		$top_left_y += $page_height + $inter_page_px;
+	}
+	$self->draw_annotations if $self->annotation;
+}#}}}
 sub redraw {#{{{
 	my ($self) = @_;
 
@@ -479,5 +416,68 @@ sub render_pages {#{{{
 		unless $min_page_no == 0;
 	$self->render_pages_pre_thread(\@pages_to_render);
 }#}}}
+sub render_pages_pre_thread {#{{{
+	my ($self, $pages) = @_;
+
+	my $pages_in_buffer = Set::Scalar->new(map { $_->{page} } @{$self->_buffer});
+	my $pages_needed = Set::Scalar->new(@$pages);
+
+	my $pages_to_render_done = $pages_needed->intersection($pages_in_buffer);
+	my $pages_to_render_will = $pages_needed-$pages_to_render_done;
+	my $pages_to_remove_not_needed = $pages_in_buffer-$pages_to_render_done;
+	my $buffers_needed = $pages_to_render_will->size - $pages_to_remove_not_needed->size;
+	$self->add_buffer() for(0..$buffers_needed-1);
+
+	my $id_to_use = Set::Scalar->new(map { $_->{name} }
+		grep { $pages_to_remove_not_needed->has($_->{page}) or $_->{page} == -1 }
+		@{$self->_buffer});
+
+	while (defined(my $id = $id_to_use->each) && defined(my $page = $pages_to_render_will->each)) {
+		my $job = { doc_pdf => { id => $self->id,
+				data => { action => 'render_page',
+					file => $self->file, id => $id,
+					page => $page, zoom => $self->zoom } } };
+		$self->pool->add_work($job);
+	}
+	$self->remove_page_photo_canvas_items($pages_to_remove_not_needed->members); # remove pages in render_pages_post_thread?
+}#}}}
+sub render_pages_post_thread {#{{{
+	my ($self, $job) = @_;
+	return unless $job->{data}{zoom} == $self->zoom; # TODO This a problem with how jobs come in without being validated for a given page state.
+	my $id = $job->{data}{id};
+	my $page = $job->{data}{page};
+	my $img_data = $job->{data}{image_data};
+	my $tk_photo = $self->_image->{$id};
+	$tk_photo->configure(-data => $img_data );
+	my $b = first { $_->{name} eq $id } @{$self->_buffer};
+	$b->{page} = $page;
+	my $rect_tag = "page_rect_$page";
+	my $photo_id = $self->_image->{(first { $_->{page} == $page } @{$self->_buffer})->{name}};
+	my @coords = Tkx::SplitList($self->_widgets->{cv}->coords($self->_canvas->{$rect_tag}));
+	$self->_canvas->{"page_photo_$page"} = $self->_widgets->{cv}->create_image(
+		$coords[0], $coords[1],
+		-image => $photo_id,
+		-tags => "page_photo page_photo_no_$page", -anchor => 'nw');
+
+	$self->_widgets->{cv}->lower('page_photo', 'annotation');
+}#}}}
+sub remove_page_photo_canvas_items {#{{{
+	my ($self, @which) = @_;
+	return unless @which;
+	if($which[0] eq 'all') {
+		for my $key (grep { /^page_photo/ } keys $self->_canvas) {
+			$self->_widgets->{cv}->delete($self->_canvas->{$key});
+			delete $self->_canvas->{$key};
+		}
+	} else {
+		for my $page (@which) {
+			my $tag = "page_photo_$page";
+			next unless exists $self->_canvas->{$tag};
+			$self->_widgets->{cv}->delete($self->_canvas->{$tag});
+			delete $self->_canvas->{$tag};
+		}
+	}
+}#}}}
+#}}}
 
 1;

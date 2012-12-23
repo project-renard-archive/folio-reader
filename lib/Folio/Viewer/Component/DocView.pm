@@ -353,8 +353,40 @@ sub add_handlers {#{{{
 	$self->_window->g_bind('-', [sub {$self->zoom_change(-10)}, 1]);
 	$self->_window->g_bind('+', [sub {$self->zoom_change( 10)}, -1]);
 
+	for my $number (0..9) {
+		$self->_window->g_bind($number, [sub {$self->mark_number_log($number, time)}, -1]);
+	}
+	#$self->_window->g_bind('gg', [sub {$self->goto_page($self->first_page)}, 1]); # TODO
+	$self->_window->g_bind( 'g', [sub {$self->goto_page($self->get_number_log(time)-1)}, 1]);
+	$self->_window->g_bind( 'G', [sub {$self->goto_page($self->last_page)}, 1]);
+
 	#$self->_window->g_bind('q',          [sub {Tkx::exit()}, 0]);
 }#}}}
+
+has _key_number_log => ( is => 'rw', default => sub {{}} );
+sub mark_number_log {
+	my ($self, $number, $time) = @_;
+	push @{$self->_key_number_log->{number}}, $number;
+	push @{$self->_key_number_log->{time}}, $time;
+}
+use constant NUMBER_LOG_DELAY => 2;
+sub get_number_log {
+	my ($self, $time) = @_;
+	my @numbers = ();
+	my $prev_time = $time // time;
+	my $last_time = pop $self->_key_number_log->{time} // 0;
+	while(@{$self->_key_number_log->{number}}
+			and $prev_time-$last_time <= NUMBER_LOG_DELAY) {
+		unshift @numbers, pop $self->_key_number_log->{number};
+		$prev_time = $last_time;
+		$last_time = pop $self->_key_number_log->{time};
+	}
+	$self->_key_number_log->{number} = [];
+	$self->_key_number_log->{time} = [];
+	return 0+(join "", @numbers) if @numbers;
+	undef; # if @numbers is empty
+}
+
 #}}}
 # Zoom {{{
 sub zoom_change {#{{{

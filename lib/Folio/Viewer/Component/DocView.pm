@@ -174,8 +174,25 @@ after __clear_image => sub { $_[0]->_image($_[0]->_build__image) };
 sub _build__image { {} }
 #}}}
 # Goto page {{{
+# 0-based index
+sub valid_page {
+	my ($self, $page) = @_;
+	my $pages_pdl = $self->page_geometry;
+	my $num_pages = $pages_pdl->dim(1);
+	return ($page >= 0 && $page < $num_pages);
+}
+sub first_page {
+	return 0;
+}
+sub last_page {
+	my ($self) = @_;
+	my $pages_pdl = $self->page_geometry;
+	my $num_pages = $pages_pdl->dim(1);
+	$num_pages - 1;
+}
 sub goto_page {#{{{
 	my ($self, $page) = @_;
+	return unless $self->valid_page($page);
 	my $job = { doc_pdf => { id => $self->id,
 			data => { action => 'goto_page',
 				page => $page, zoom => $self->zoom } } };

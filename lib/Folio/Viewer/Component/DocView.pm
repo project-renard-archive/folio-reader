@@ -47,9 +47,9 @@ has _canvas_page_x => ( is => 'rw', isa => ArrayRef, default => sub{[]}, clearer
 has document => ( is => 'lazy' );
 
 has _cv_tags => ( is => 'lazy' );
-has _canvas => ( is => 'rw', isa => HashRef, default => sub { {} }, clearer => '__clear_canvas' );
-has _image => ( is => 'rw', default => sub { {} }, clearer => '__clear_image' );
-has _buffer => ( is => 'rw', isa => ArrayRef, default => sub {[]}, clearer => 1 );
+has _canvas => ( is => 'rw', isa => HashRef, builder => 1, clearer => '__clear_canvas' );
+has _image => ( is => 'rw', builder => 1, clearer => '__clear_image' );
+has _buffer => ( is => 'rw', isa => ArrayRef, builder => 1, clearer => '__clear_buffer' );
 #}}}
 
 sub _build__window {#{{{
@@ -113,15 +113,21 @@ sub DEMOLISH {#{{{
 	$self->__clear_canvas;
 	$self->__clear_image;
 }#}}}
-sub __clear_canvas {#{{{
+before __clear_canvas => sub {#{{{
 	my ($self) = @_;
 	$self->_widgets->{cv}->delete(values $self->_canvas);
-	$self->_canvas({});
-}#}}}
-sub __clear_image {#{{{
+};#}}}
+after __clear_canvas => sub { $_[0]->_canvas($_[0]->_build__canvas) };
+sub _build__canvas { {} }
+before __clear_image => sub {#{{{
 	my ($self) = @_;
-	Tkx::image_delete(keys $self->_image);
-}#}}}
+	Tkx::image_delete(values $self->_image);
+};#}}}
+after __clear_image => sub { $_[0]->_image($_[0]->_build__image) };
+sub _build__image { {} }
+
+after __clear_buffer => sub { $_[0]->_buffer($_[0]->_build__buffer) };
+sub _build__buffer {[]}
 
 sub add_buffer {#{{{
 	my ($self) = @_;
@@ -400,10 +406,6 @@ sub move_annotation {#{{{
 	}
 }#}}}
 
-sub add_annotation {#{{{
-	my ($self, $page, ) = @_;
-}#}}}
-
 sub add_handlers {#{{{
 	my ($self) = @_;
 	$self->_window->g_bind('<Button-5>', [sub {$self->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
@@ -441,15 +443,10 @@ sub redraw {#{{{
 	my ($self) = @_;
 
 	$self->_widgets->{cv}->delete(values $self->_canvas);
+
 	$self->__clear_canvas;
-	$self->_canvas({});
-
-	Tkx::image_delete(values $self->_image);
 	$self->__clear_image;
-	$self->_image({});
-
-	$self->_clear_buffer;
-	$self->_buffer([]);
+	$self->__clear_buffer;
 
 	$self->clear_page_geometry;
 

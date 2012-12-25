@@ -5,16 +5,15 @@ use strict;
 use warnings;
 use Moo;
 use MooX::Types::MooseLike::Base qw(:all);
-use PDL;
 use List::Util qw/first/;
 use Set::Scalar;
 use File::Basename;
 use YAML::XS qw/LoadFile DumpFile/;
 use Carp;
 use Try::Tiny;
+with qw(Folio::Viewer::Component::DocView::PageGeometryRole);
 
 # Attributes {{{
-has docview => ( is => 'rw', weak_ref => 1 );
 has annotation => ( is => 'rw', default => sub {0} );
 has annotation_file => ( is => 'lazy' );
 has annotation_data => ( is => 'rw', builder => 'build_annotation_data', lazy => 1, clearer => 1 );
@@ -22,10 +21,8 @@ has _in_annotation_mode => ( is => 'rw', default => sub { 0 } );
 has _in_annotation_mode_sx => ( is => 'rw', default => sub { 0 } );
 has _in_annotation_mode_sy => ( is => 'rw', default => sub { 0 } );
 
-has zoom => ( is => 'rw', default => sub{ 100; } );
 has prev_zoom => ( is => 'rw', default => sub{ 100; } );
 has base_font_size => ( is => 'rw', default => sub { 11; }  );
-has page_geometry => ( is => 'lazy', clearer => 1 );
 
 has _canvas_page_y => ( is => 'rw', isa => ArrayRef, default => sub{[]}, clearer => 1 );
 has _canvas_page_x => ( is => 'rw', isa => ArrayRef, default => sub{[]}, clearer => 1 );
@@ -93,16 +90,6 @@ before __clear_image => sub {#{{{
 after __clear_image => sub { $_[0]->_image($_[0]->_build__image) };
 sub _build__image { {} }
 
-sub _build_page_geometry {#{{{
-	my ($self) = @_;
-	my $doc_bounds = null;
-	for my $page_num (0..$self->docview->document->page_count-1) {
-		$doc_bounds = $doc_bounds->glue(1,pdl $self->docview->page_manager->get_page_bounds($self->docview->file,
-			$page_num, $self->zoom));
-	}
-	croak("Size mismatch") unless $doc_bounds->dim(1) == $self->docview->document->page_count;
-	$doc_bounds;
-}#}}}
 #}}}
 # Goto page {{{
 sub goto_page {#{{{

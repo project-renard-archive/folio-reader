@@ -113,7 +113,6 @@ sub create_docview_post_thread {
 	$self->register_docview($dv);
 	#$dv->pool($self->pool);
 	$dv->pool($job->{data}{render_thread});
-	$dv->add_handlers;
 	push @{$self->cleanup->{join}}, $job;
 		# TODO store this in a DS to join using threadpool
 	$dv->show;

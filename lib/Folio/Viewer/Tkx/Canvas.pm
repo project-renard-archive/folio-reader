@@ -33,14 +33,8 @@ sub canvas_visible_tags {#{{{
 	my ($self, $partial) = @_;
 	my $canvas = $self->canvas;
 	$partial //= 1;
-	my ($xmin, $ymin, $xmax, $ymax) =  Tkx::SplitList($canvas->cget('-scrollregion'));
-	my ($y1, $y2) = Tkx::SplitList($canvas->yview);
-	my ($x1, $x2) = Tkx::SplitList($canvas->xview);
 
-	my $top   = ($ymax - $ymin) * $y1 + $ymin;
-	my $bot   = ($ymax - $ymin) * $y2 + $ymin;
-	my $left  = ($xmax - $xmin) * $x1 + $xmin;
-	my $right = ($xmax - $xmin) * $x2 + $xmin;
+	my ($top, $bot, $left, $right) = @{$self->canvas_coords()};
 
 	my @list;
 	if($partial) {
@@ -48,7 +42,6 @@ sub canvas_visible_tags {#{{{
 	} else {
 		@list = Tkx::SplitList($canvas->find_enclosed($left, $top, $right, $bot));
 	}
-	#print "@list\n";
 	return [map { Tkx::SplitList($canvas->gettags($_)) } @list];
 }#}}}
 
@@ -57,6 +50,21 @@ sub canvas_withtag {#{{{
 	my $canvas = $self->canvas;
 	return Tkx::SplitList($canvas->find_withtag($tag));
 }#}}}
+
+sub canvas_coords {
+	my ($self) = @_;
+	my $canvas = $self->canvas;
+
+	my ($xmin, $ymin, $xmax, $ymax) =  Tkx::SplitList($canvas->cget('-scrollregion'));
+	my ($y1, $y2) = Tkx::SplitList($canvas->yview);
+	my ($x1, $x2) = Tkx::SplitList($canvas->xview);
+
+	my $top   = ($ymax - $ymin) * $y1 + $ymin;
+	my $bot   = ($ymax - $ymin) * $y2 + $ymin;
+	my $left  = ($xmax - $xmin) * $x1 + $xmin;
+	my $right = ($xmax - $xmin) * $x2 + $xmin;
+	[$top, $bot, $left, $right];
+}
 
 
 1;

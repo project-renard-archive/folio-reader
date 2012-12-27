@@ -15,6 +15,7 @@ use Folio::Viewer::Tkx::Canvas;
 
 use Folio::Viewer::Component::DocView::SingleContinuousVerticalScroll;
 use Folio::Viewer::Component::DocView::Null;
+use Folio::Viewer::Component::DocView::PagePicker;
 #}}}
 
 # Attributes {{{
@@ -31,6 +32,7 @@ has document => ( is => 'lazy' );
 has _image => ( is => 'rw', builder => 1, clearer => '__clear_image' );
 has canvas_manager => ( is => 'rw', predicate => 1 );
 has scvs_canvas_manager => ( is => 'lazy', builder => 1 );
+has pp_canvas_manager => ( is => 'lazy', builder => 1 );
 
 has _canvas => ( is => 'rw', isa => HashRef, builder => 1, clearer => '__clear_canvas' );
 #}}}
@@ -158,7 +160,15 @@ sub set_canvas_manager_scvs {
 	my ($self) = @_;
 	$self->canvas_manager($self->scvs_canvas_manager);
 }
-
+sub set_canvas_manager_pp {
+	my ($self) = @_;
+	$self->canvas_manager($self->pp_canvas_manager);
+}
+sub _build_pp_canvas_manager {
+	my ($self) = @_;
+	Folio::Viewer::Component::DocView::PagePicker
+		->new(docview => $self);
+}
 sub _build_scvs_canvas_manager {
 	my ($self) = @_;
 	Folio::Viewer::Component::DocView::SingleContinuousVerticalScroll
@@ -168,6 +178,8 @@ sub _build_scvs_canvas_manager {
 # Keybindings {{{
 sub add_handlers {#{{{
 	my ($self) = @_;
+	$self->_window->g_bind('p', [sub {$self->canvas_manager($self->set_canvas_manager_pp)}, 1]);
+		# p
 	$self->_window->g_bind('<Key-bracketleft>', [sub {$self->canvas_manager(Folio::Viewer::Component::DocView::Null->new(docview => $self))}, 1]);
 		# [
 	$self->_window->g_bind('<Key-bracketright>', [sub {$self->set_canvas_manager_scvs}, -1]);

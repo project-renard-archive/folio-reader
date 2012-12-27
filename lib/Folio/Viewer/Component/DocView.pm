@@ -176,4 +176,12 @@ sub add_handlers {#{{{
 #}}}
 
 
+sub canvas_cell_size {
+	my ($self) = @_;
+	my @canvas_cell = (0, 0);
+	#$self->_window->g_grid_bbox( @canvas_cell );
+	my @bbox = Tkx::SplitList($self->_window->g_grid_bbox(@canvas_cell));
+	[@bbox[2,3]];
+}
+
 1;

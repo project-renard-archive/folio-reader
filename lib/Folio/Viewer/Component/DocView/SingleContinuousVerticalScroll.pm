@@ -186,7 +186,7 @@ sub make_annotation {#{{{
 		if($x eq 'del') {
 			$self->_in_annotation_mode(0); # stop
 			$self->toggle_annotations; $self->toggle_annotations; # force complete redraw
-			return 
+			return;
 		}
 		if(not $self->_in_annotation_mode) {
 			$self->_in_annotation_mode(1); # start it
@@ -235,57 +235,57 @@ sub move_annotation {#{{{
 sub add_handlers {#{{{
 	my ($self) = @_;
 	$self->docview->_window->g_bind('<Button-5>', [sub {$self->docview->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
-		push @{$self->_bind_keys}, '<Button-5>'; 
+		push @{$self->_bind_keys}, '<Button-5>';
 	$self->docview->_window->g_bind('<Button-4>', [sub {$self->docview->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
-		push @{$self->_bind_keys}, '<Button-4>'; 
+		push @{$self->_bind_keys}, '<Button-4>';
 	$self->docview->_window->g_bind('<space>',    [sub {$self->docview->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
-		push @{$self->_bind_keys}, '<space>'; 
+		push @{$self->_bind_keys}, '<space>';
 	$self->docview->_window->g_bind('b',        [sub {$self->docview->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
-		push @{$self->_bind_keys}, 'b'; 
+		push @{$self->_bind_keys}, 'b';
 	$self->docview->_window->g_bind('<Next>',     [sub {$self->docview->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
-		push @{$self->_bind_keys}, '<Next>'; 
+		push @{$self->_bind_keys}, '<Next>';
 	$self->docview->_window->g_bind('<Prior>',    [sub {$self->docview->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
-		push @{$self->_bind_keys}, '<Prior>'; 
+		push @{$self->_bind_keys}, '<Prior>';
 	$self->docview->_window->g_bind('j',          [sub {$self->docview->_widgets->{cv}->yview( scroll => @_, 'units')}, 1]);
-		push @{$self->_bind_keys}, 'j'; 
+		push @{$self->_bind_keys}, 'j';
 	$self->docview->_window->g_bind('k',          [sub {$self->docview->_widgets->{cv}->yview( scroll => @_, 'units')}, -1]);
-		push @{$self->_bind_keys}, 'k'; 
+		push @{$self->_bind_keys}, 'k';
 	$self->docview->_window->g_bind('h',          [sub {$self->docview->_widgets->{cv}->xview( scroll => @_, 'units')}, -1]);
-		push @{$self->_bind_keys}, 'h'; 
+		push @{$self->_bind_keys}, 'h';
 	$self->docview->_window->g_bind('l',          [sub {$self->docview->_widgets->{cv}->xview( scroll => @_, 'units')}, 1]);
-		push @{$self->_bind_keys}, 'l'; 
+		push @{$self->_bind_keys}, 'l';
 
 	$self->docview->_window->g_bind('<Button-1>', [sub {$self->make_annotation(@_) }, Tkx::Ev("%x","%y")]);
-		push @{$self->_bind_keys}, '<Button-1>'; 
+		push @{$self->_bind_keys}, '<Button-1>';
 	$self->docview->_window->g_bind('<Button-3>', [sub {$self->make_annotation('del') }, Tkx::Ev("%x","%y")]);
-		push @{$self->_bind_keys}, '<Button-3>'; 
+		push @{$self->_bind_keys}, '<Button-3>';
 	$self->docview->_window->g_bind('<Motion>',   [sub {$self->move_annotation(@_) }, Tkx::Ev("%x","%y")]);
-		push @{$self->_bind_keys}, '<Motion>'; 
+		push @{$self->_bind_keys}, '<Motion>';
 	$self->docview->_window->g_bind('a',          [sub {$self->toggle_annotations() }, 0]);
-		push @{$self->_bind_keys}, 'a'; 
+		push @{$self->_bind_keys}, 'a';
 
 	$self->docview->_window->g_bind('<Control-Button-5>', [sub {$self->zoom_change(-10)}, 1]);
-		push @{$self->_bind_keys}, '<Control-Button-5>'; 
+		push @{$self->_bind_keys}, '<Control-Button-5>';
 	$self->docview->_window->g_bind('<Control-Button-4>', [sub {$self->zoom_change( 10)}, -1]);
-		push @{$self->_bind_keys}, '<Control-Button-4>'; 
+		push @{$self->_bind_keys}, '<Control-Button-4>';
 	$self->docview->_window->g_bind('<Key-minus>', [sub {$self->zoom_change(-10)}, 1]);
-		push @{$self->_bind_keys}, '<Key-minus>'; 
+		push @{$self->_bind_keys}, '<Key-minus>';
 	$self->docview->_window->g_bind('<Key-plus>', [sub {$self->zoom_change( 10)}, -1]);
-		push @{$self->_bind_keys}, '<Key-plus>'; 
+		push @{$self->_bind_keys}, '<Key-plus>';
 
 	for my $number (0..9) {
 		$number = "$number";
 		$self->docview->_window->g_bind($number, [sub {$self->mark_number_log($number, time)}, -1]);
-		push @{$self->_bind_keys}, $number; 
+		push @{$self->_bind_keys}, $number;
 	}
 	#$self->docview->_window->g_bind('gg', [sub {$self->goto_page($self->docview->first_page)}, 1]); # TODO
 	$self->docview->_window->g_bind( 'g', [sub {
 			my $range = $self->get_number_log(time);
 			$self->goto_page(defined $range ? $range-1 : $self->docview->first_page);
 		}, 1]);
-		push @{$self->_bind_keys}, 'g'; 
+		push @{$self->_bind_keys}, 'g';
 	$self->docview->_window->g_bind( 'G', [sub {$self->goto_page($self->docview->last_page)}, 1]);
-		push @{$self->_bind_keys}, 'G'; 
+		push @{$self->_bind_keys}, 'G';
 
 	#$self->docview->_window->g_bind('q',          [sub {Tkx::exit()}, 0]);
 }#}}}

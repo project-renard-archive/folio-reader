@@ -5,7 +5,7 @@ use warnings;
 use base qw(Tkx::widget Tkx::MegaConfig);
 
 __PACKAGE__->_Mega('tkx_Progress');
- 
+
 __PACKAGE__->_Config(
     DEFAULT => ['.p'],
     -label  => [[".lab" => "-text"]],
@@ -19,10 +19,10 @@ my $progressbar;
 
 sub _Populate {
     my($class, $widget, $path, %opt) = @_;
- 
+
     my $self = $class->new($path)->_parent->new_frame(-name => $path, -class => "Tkx_Progress");
     $self->_class($class);
- 
+
     $self->new_label(-name => "lab", -text => delete $opt{-label})->g_pack(-side => "left");
     ($progressbar = $self->new_ttk__progressbar(-name => "p",
 	    -orient => 'horizontal', -mode => 'determinate', %opt))->_pack_left_fill;

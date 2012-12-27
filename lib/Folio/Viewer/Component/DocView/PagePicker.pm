@@ -123,9 +123,9 @@ sub _build__cv_tags {#{{{
 sub add_handlers {
 	my ($self) = @_;
 	$self->docview->_window->g_bind('<Key-minus>', [sub {$self->page_columns($self->page_columns-1)}, 1]);
-		push @{$self->_bind_keys}, '<Key-minus>'; 
+		push @{$self->_bind_keys}, '<Key-minus>';
 	$self->docview->_window->g_bind('<Key-plus>', [sub {$self->page_columns($self->page_columns+1)}, -1]);
-		push @{$self->_bind_keys}, '<Key-plus>'; 
+		push @{$self->_bind_keys}, '<Key-plus>';
 }
 
 sub remove_handlers {

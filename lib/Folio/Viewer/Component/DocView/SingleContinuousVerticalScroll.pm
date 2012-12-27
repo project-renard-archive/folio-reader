@@ -45,7 +45,6 @@ sub load {
 sub unload {
 	my ($self) = @_;
 	$self->clear_data;
-	# TODO
 	$self->remove_handlers;
 }
 #}}}

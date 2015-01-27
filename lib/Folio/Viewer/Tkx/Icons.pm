@@ -15,8 +15,12 @@ has file => ( is => 'lazy' );
 has icons => ( is => 'rw', trigger => 1);
 
 sub _build_file {
-	File::Spec->catfile((first { m,icons/?$, } split ' ', $ENV{TCLLIBPATH}),
-		'tkIcons');
+	# find the path in $ENV{TCLLIBPATH} that contains the tkIcons file
+	my @files =
+		grep { -f $_ }
+		map { File::Spec->catfile($_, 'tkIcons') }
+		split ' ', $ENV{TCLLIBPATH};
+	$files[0]; # get first one
 }
 
 sub _trigger_icons {
